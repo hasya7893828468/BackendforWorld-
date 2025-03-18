@@ -93,7 +93,7 @@ app.use("/api/groceries", groceryRoutes);
 
 // ✅ Root Route
 app.get("/", (req, res) => {
-    res.send("🚀 API is running...");
+    res.send("🚀 API is running...testing...");
 });
 
 // ✅ Initialize Socket.io with CORS
