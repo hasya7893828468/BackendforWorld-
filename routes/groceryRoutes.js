@@ -5,15 +5,11 @@ const fs = require("fs");
 const path = require("path");
 const Grocery = require("../models/Grocery");
 
-// ✅ Ensure 'uploads' directory exists
-const uploadDir = path.join(__dirname, "../uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
 // ✅ Multer storage setup
 const storage = multer.diskStorage({
-  destination: uploadDir,
+  // destination: "uploads/",
+    destination: "tiger/",
+
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
   },
@@ -45,24 +41,28 @@ router.get("/name/:name", async (req, res) => {
 // ✅ Get grocery by ID
 router.get("/:id", async (req, res) => {
   try {
+    console.log("Received ID:", req.params.id); // Debugging
+
     const grocery = await Grocery.findById(req.params.id);
-    if (!grocery) return res.status(404).json({ message: "Grocery not found" });
+    if (!grocery) {
+      console.log("Grocery not found!"); // Debugging
+      return res.status(404).json({ message: "Grocery not found" });
+    }
     res.json(grocery);
   } catch (error) {
+    console.error("Server error:", error);
     res.status(500).json({ message: "Internal Server Error", error });
   }
 });
 
-// ✅ Add a new grocery item (with image upload)
+// ✅ Add a new grocery item
 router.post("/", upload.single("img"), async (req, res) => {
   try {
     const { name, price, Dprice, Off } = req.body;
     if (!req.file) {
       return res.status(400).json({ error: "Image file is required" });
     }
-    
-    const imgPath = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`; // ✅ Full URL
-    
+    const imgPath = `/tiger/${req.file.filename}`;
     const newGrocery = new Grocery({ name, img: imgPath, price, Dprice, Off });
     await newGrocery.save();
     res.status(201).json({ message: "Grocery added successfully", grocery: newGrocery });
@@ -77,13 +77,9 @@ router.delete("/:id", async (req, res) => {
     const grocery = await Grocery.findById(req.params.id);
     if (!grocery) return res.status(404).json({ error: "Grocery not found" });
 
-    // ✅ Delete image safely
-    const filePath = path.join(__dirname, "../uploads", path.basename(grocery.img));
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
+    // Delete image from server
+    const filePath = path.join(__dirname, "../", grocery.img); // Join with the directory
+    fs.unlinkSync(filePath);
     await Grocery.findByIdAndDelete(req.params.id);
     res.json({ message: "Grocery deleted successfully" });
   } catch (err) {
