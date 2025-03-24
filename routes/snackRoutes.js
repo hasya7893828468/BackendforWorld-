@@ -2,10 +2,11 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const fs = require("fs");
+const path = require("path");
 const Snack = require("../models/Snack");
 
-// ✅ Ensure uploads folder exists
-const UPLOAD_DIR = "tiger";
+// ✅ Ensure 'uploads' folder exists
+const UPLOAD_DIR = path.join(__dirname, "../uploads");
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR);
 }
@@ -52,7 +53,7 @@ router.post("/", upload.single("img"), async (req, res) => {
     }
 
     const { name, price, Dprice, Off } = req.body;
-    const imgPath = `/tiger/${req.file.filename}`;
+    const imgPath = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`; // ✅ Full URL
 
     const newSnack = new Snack({ name, img: imgPath, price, Dprice, Off });
     await newSnack.save();
@@ -70,10 +71,10 @@ router.delete("/:id", async (req, res) => {
     const snack = await Snack.findById(req.params.id);
     if (!snack) return res.status(404).json({ error: "Snack not found" });
 
-    // Construct correct file path
-    const filePath = `.${snack.img}`;
-    
-    // ✅ Check if file exists before attempting to delete
+    // ✅ Convert image URL to absolute file path
+    const filePath = path.join(__dirname, "../uploads", path.basename(snack.img));
+
+    // ✅ Check if file exists before deleting
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       console.log("🗑️ Deleted file:", filePath);
@@ -91,7 +92,6 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-
 // ✅ Get a single snack by ID
 router.get("/:id", async (req, res) => {
   try {
@@ -108,4 +108,4 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-module.exports = router; // ✅ Export the router correctly
+module.exports = router;

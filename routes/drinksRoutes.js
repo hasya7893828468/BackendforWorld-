@@ -6,7 +6,7 @@ const path = require("path");
 const fs = require("fs");
 
 // Ensure 'uploads' directory exists
-const uploadDir = path.join(__dirname, "../tiger");
+const uploadDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
@@ -19,14 +19,14 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Fetch all drinks
-router.get("/", async (req, res) => {
-  try {
-    const drinks = await Drink.find();
-    res.json(drinks);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", error });
-  }
-});
+// router.get("/", async (req, res) => {
+//   try {
+//     const drinks = await Drink.find();
+//     res.json(drinks);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server Error", error });
+//   }
+// });
 
 
 // Add a new drink (with image upload)
@@ -37,7 +37,7 @@ router.post("/", upload.single("img"), async (req, res) => {
 
     const newDrink = new Drink({
       name,
-      img: `/tiger/${req.file.filename}`,
+      img: `/uploads/${req.file.filename}`,
       price,
       Dprice,
       Off,
