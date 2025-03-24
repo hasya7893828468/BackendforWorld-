@@ -8,7 +8,6 @@ const fs = require("fs");
 
 const streamifier = require("streamifier");
 const cloudinary = require("../config/cloudinary");
-const Drink = require("../models/Drink");
 
 // const router = express.Router();
 

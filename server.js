@@ -53,7 +53,7 @@ app.options("*", cors(corsOptions)); // ✅ Handle preflight requests
 
 // ✅ Serve Static Files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// app.use('/tiger', express.static(path.join(__dirname, 'tiger')));
+app.use('/tiger', express.static(path.join(__dirname, 'tiger')));
 
 app.use("/images", express.static(path.join(__dirname, "public/images")));
 app.use("/imgdrink", express.static(path.join(__dirname, "public/imgdrink")));
@@ -93,7 +93,7 @@ app.use("/api/groceries", groceryRoutes);
 
 // ✅ Root Route
 app.get("/", (req, res) => {
-    res.send("🚀 API is running...testing...");
+    res.send("🚀 API is running...");
 });
 
 // ✅ Initialize Socket.io with CORS
