@@ -75,25 +75,25 @@ router.get("/", async (req, res) => {
 
 
 // Add a new drink (with image upload)
-router.post("/", upload.single("img"), async (req, res) => {
-  try {
-    const { name, price, Dprice, Off } = req.body;
-    if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+// router.post("/", upload.single("img"), async (req, res) => {
+//   try {
+//     const { name, price, Dprice, Off } = req.body;
+//     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
 
-    const newDrink = new Drink({
-      name,
-      img: `/tiger/${req.file.filename}`,
-      price,
-      Dprice,
-      Off,
-    });
+//     const newDrink = new Drink({
+//       name,
+//       img: `/tiger/${req.file.filename}`,
+//       price,
+//       Dprice,
+//       Off,
+//     });
 
-    await newDrink.save();
-    res.status(201).json({ message: "Drink added", drink: newDrink });
-  } catch (error) {
-    res.status(500).json({ error: "Error saving drink", details: error.message });
-  }
-});
+//     await newDrink.save();
+//     res.status(201).json({ message: "Drink added", drink: newDrink });
+//   } catch (error) {
+//     res.status(500).json({ error: "Error saving drink", details: error.message });
+//   }
+// });
 
 
 router.get("/", async (req, res) => {
