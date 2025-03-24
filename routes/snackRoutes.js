@@ -1,28 +1,19 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const fs = require("fs");
 const Snack = require("../models/Snack");
+const multer = require("multer");
+const streamifier = require("streamifier");
+const cloudinary = require("../config/cloudinary");
 
-// ✅ Ensure uploads folder exists
-const UPLOAD_DIR = "tiger";
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR);
-}
-
-// ✅ Multer storage setup
-const storage = multer.diskStorage({
-  destination: UPLOAD_DIR,
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
+// ✅ Multer Storage (Memory for Cloudinary)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // ✅ Get all snacks
 router.get("/", async (req, res) => {
   try {
     const snacks = await Snack.find();
+    if (!snacks.length) return res.status(404).json({ message: "No snacks found" });
     res.json(snacks);
   } catch (err) {
     res.status(500).json({ error: "Error fetching snacks" });
@@ -33,7 +24,7 @@ router.get("/", async (req, res) => {
 router.get("/name/:name", async (req, res) => {
   try {
     const snackName = decodeURIComponent(req.params.name).trim();
-    const snack = await Snack.findOne({ name: { $regex: new RegExp(`^${snackName}$`, "i") } });
+    const snack = await Snack.findOne({ name: new RegExp(`^${snackName}$`, "i") });
     if (!snack) return res.status(404).json({ message: "Snack not found" });
     res.json(snack);
   } catch (err) {
@@ -41,47 +32,57 @@ router.get("/name/:name", async (req, res) => {
   }
 });
 
-// ✅ Add a new snack (FIXED)
+// ✅ Add a new snack (Cloudinary Upload)
 router.post("/", upload.single("img"), async (req, res) => {
   try {
-    console.log("📥 Request received:", req.body);
-    console.log("🖼️ Uploaded file:", req.file);
+    if (!req.body.name || !req.body.price) {
+      return res.status(400).json({ error: "Name and Price are required" });
+    }
 
     if (!req.file) {
       return res.status(400).json({ error: "Image file is required" });
     }
 
     const { name, price, Dprice, Off } = req.body;
-    const imgPath = `/tiger/${req.file.filename}`;
 
-    const newSnack = new Snack({ name, img: imgPath, price, Dprice, Off });
-    await newSnack.save();
+    // Upload image to Cloudinary
+    const stream = cloudinary.uploader.upload_stream(async (error, result) => {
+      if (error) {
+        return res.status(500).json({ error: "Cloudinary upload failed" });
+      }
 
-    res.status(201).json({ message: "✅ Snack added", snack: newSnack });
+      const newSnack = new Snack({
+        name,
+        img: result.secure_url, // Store Cloudinary URL
+        price,
+        Dprice,
+        Off,
+      });
+
+      await newSnack.save();
+      res.status(201).json({ message: "✅ Snack added", snack: newSnack });
+    });
+
+    streamifier.createReadStream(req.file.buffer).pipe(stream);
   } catch (err) {
     console.error("❌ Error adding snack:", err);
     res.status(500).json({ error: "Error adding snack" });
   }
 });
 
-// ✅ Delete a snack (FIXED)
+// ✅ Delete a snack (Remove from Cloudinary)
 router.delete("/:id", async (req, res) => {
   try {
     const snack = await Snack.findById(req.params.id);
     if (!snack) return res.status(404).json({ error: "Snack not found" });
 
-    // Construct correct file path
-    const filePath = `.${snack.img}`;
-    
-    // ✅ Check if file exists before attempting to delete
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log("🗑️ Deleted file:", filePath);
-    } else {
-      console.warn("⚠️ File not found:", filePath);
-    }
+    // Extract Cloudinary public ID from URL
+    const publicId = snack.img.split("/").pop().split(".")[0];
 
-    // ✅ Delete snack from database
+    // Delete image from Cloudinary
+    await cloudinary.uploader.destroy(publicId);
+
+    // Remove from database
     await Snack.findByIdAndDelete(req.params.id);
 
     res.json({ message: "✅ Snack deleted successfully" });
@@ -91,8 +92,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-
-// ✅ Get a single snack by ID
+// ✅ Get snack by ID
 router.get("/:id", async (req, res) => {
   try {
     if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
