@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const Vendor = require("../models/Vendor");
 
 const router = express.Router(); // ✅ Define `router`
+const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 
 // ✅ Vendor Registration Route
 router.post("/register", async (req, res) => {
@@ -15,12 +16,10 @@ router.post("/register", async (req, res) => {
     }
 
     console.log("🔍 Checking if Vendor Exists:", email);
-
     const existingVendor = await Vendor.findOne({ email });
     if (existingVendor) {
       return res.status(400).json({ error: "Vendor already exists" });
     }
-    
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const vendor = new Vendor({ name, email, password: hashedPassword });
@@ -55,8 +54,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ vendorId: vendor._id }, "your_secret_key", { expiresIn: "1h" });
-
+    const token = jwt.sign({ vendorId: vendor._id }, JWT_SECRET, { expiresIn: "1h" });
     res.json({ message: "Login successful", token, vendorId: vendor._id });
   } catch (error) {
     console.error("❌ Vendor Login Error:", error);
@@ -64,18 +62,14 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
 // ✅ Fetch Vendor Location
 router.get("/vendor-location/:vendorId", async (req, res) => {
   try {
     const { vendorId } = req.params;
-
     const vendor = await Vendor.findById(vendorId);
-    if (!vendor) {
-      return res.status(404).json({ error: "Vendor not found" });
+    if (!vendor || !vendor.location) {
+      return res.status(404).json({ error: "Vendor location not found" });
     }
-    
-
     res.json({ latitude: vendor.location.latitude, longitude: vendor.location.longitude });
   } catch (error) {
     console.error("❌ Error fetching vendor location:", error);
@@ -88,7 +82,7 @@ router.post("/update-location", async (req, res) => {
   try {
     const { vendorId, latitude, longitude } = req.body;
 
-    if (!vendorId || !latitude || !longitude) {
+    if (!vendorId || latitude === undefined || longitude === undefined) {
       return res.status(400).json({ error: "Missing vendorId, latitude, or longitude" });
     }
 
@@ -96,7 +90,6 @@ router.post("/update-location", async (req, res) => {
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found" });
     }
-    
 
     vendor.location = { latitude, longitude };
     await vendor.save();
@@ -107,16 +100,33 @@ router.post("/update-location", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+// ✅ Fetch Vendor List
 router.get("/list", async (req, res) => {
   try {
-    const vendors = await Vendor.find({});
-    res.json(vendors);
+    const vendors = await Vendor.find({}, "_id name email image location");
+    if (!vendors.length) {
+      return res.status(404).json({ error: "No vendors found" });
+    }
+    res.status(200).json(vendors);
   } catch (error) {
     console.error("❌ Error fetching vendors:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
 
+// ✅ Fetch Single Vendor by ID
+router.get("/:vendorId", async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.vendorId);
+    if (!vendor) {
+      return res.status(404).json({ error: "Vendor not found" });
+    }
+    res.status(200).json(vendor);
+  } catch (error) {
+    console.error("❌ Error fetching vendor:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
-
-module.exports = router; // ✅ Keep only one `module.exports`
+module.exports = router; // ✅ Keep only one `module.exports
