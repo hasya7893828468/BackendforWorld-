@@ -4,14 +4,12 @@ const router = express.Router();
 const Cart = require("../models/Cart"); // Import Cart model
 const Product = require("../models/Product"); // Import Product model
 
-
-
 // ✅ Add item to cart (CREATE or UPDATE)
 router.post("/", async (req, res) => {
     try {
         const { userId, productId, quantity } = req.body;
 
-        if (!userId || !productId || quantity < 1) {
+        if (!userId || !mongoose.Types.ObjectId.isValid(productId) || quantity < 1) {
             return res.status(400).json({ message: "Invalid request data" });
         }
 
@@ -22,7 +20,7 @@ router.post("/", async (req, res) => {
             userCart = new Cart({ userId, items: [{ productId, quantity }] });
         } else {
             // Check if product already exists in cart
-            const itemIndex = userCart.items.findIndex(item => item.productId.equals(new mongoose.Types.ObjectId(productId)));
+            const itemIndex = userCart.items.findIndex(item => item.productId.toString() === productId);
 
             if (itemIndex !== -1) {
                 // Update quantity if item exists
@@ -51,11 +49,8 @@ router.get("/:userId", async (req, res) => {
         let userCart = await Cart.findOne({ userId }).populate("items.productId");
 
         if (!userCart) {
-            console.log("❌ Cart not found for user:", userId);
-            userCart = new Cart({ userId, items: [] });
-            await userCart.save();
-            console.log("✅ New cart created for user:", userId);
-            return res.status(201).json(userCart);
+            console.log("❌ No cart found for user:", userId);
+            return res.status(200).json({ userId, items: [] }); // ✅ Return empty cart without creating a new one
         }
 
         console.log("✅ Cart found:", userCart);
@@ -72,12 +67,14 @@ router.put("/:userId", async (req, res) => {
         const { userId } = req.params;
         const { productId, quantity } = req.body;
 
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({ message: "Invalid product ID" });
+        }
+
         const userCart = await Cart.findOne({ userId });
         if (!userCart) return res.status(404).json({ message: "Cart not found" });
 
-        const itemIndex = userCart.items.findIndex(item =>
-            item.productId.equals(new mongoose.Types.ObjectId(productId))
-        );
+        const itemIndex = userCart.items.findIndex(item => item.productId.toString() === productId);
 
         if (itemIndex !== -1) {
             userCart.items[itemIndex].quantity = quantity;
@@ -97,12 +94,14 @@ router.delete("/:userId/:productId", async (req, res) => {
     try {
         const { userId, productId } = req.params;
 
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({ message: "Invalid product ID" });
+        }
+
         const userCart = await Cart.findOne({ userId });
         if (!userCart) return res.status(404).json({ message: "Cart not found" });
 
-        userCart.items = userCart.items.filter(item =>
-            !item.productId.equals(new mongoose.Types.ObjectId(productId))
-        );
+        userCart.items = userCart.items.filter(item => item.productId.toString() !== productId);
 
         await userCart.save();
         res.json({ message: "Item removed from cart", cart: userCart });
