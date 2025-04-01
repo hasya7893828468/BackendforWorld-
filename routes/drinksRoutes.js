@@ -5,9 +5,9 @@ const multer = require("multer");
 const streamifier = require("streamifier");
 const cloudinary = require("../config/cloudinary");
 const auth = require("../middleware/authMiddleware");
-const { checkVendorRole } = require("../middleware/roleMiddleware"); // Import the role middleware
+const { checkVendorRole } = require("../middleware/roleMiddleware");
 
-// Configure Multer for memory storage
+// Multer configuration for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -18,7 +18,7 @@ const upload = multer({
     } else {
       cb(new Error("Only image files are allowed!"), false);
     }
-  }
+  },
 });
 
 // Helper function for uploading to Cloudinary
@@ -28,20 +28,19 @@ const uploadImageToCloudinary = (buffer, public_id) => {
       {
         folder: "drinks",
         public_id,
-        transformation: { width: 800, height: 600, crop: "limit" }
+        transformation: { width: 800, height: 600, crop: "limit" },
       },
       (error, result) => {
         if (error) reject(error);
         resolve(result);
       }
     );
-
     streamifier.createReadStream(buffer).pipe(uploadStream);
   });
 };
 
-// Create Drink with Cloudinary upload
-router.post("/", auth, checkVendorRole, async (req, res) => {
+// Create a new drink
+router.post("/", auth, checkVendorRole, upload.single("img"), async (req, res) => {
   try {
     const { name, price, Dprice, Off } = req.body;
 
@@ -49,7 +48,10 @@ router.post("/", auth, checkVendorRole, async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const result = await uploadImageToCloudinary(req.file.buffer, `${req.user.id}_${Date.now()}`);
+    const result = await uploadImageToCloudinary(
+      req.file.buffer,
+      `${req.user.id}_${Date.now()}`
+    );
 
     const newDrink = new Drink({
       vendor: req.user.id,
@@ -58,7 +60,7 @@ router.post("/", auth, checkVendorRole, async (req, res) => {
       price: parseFloat(price),
       Dprice: Dprice ? parseFloat(Dprice) : null,
       Off: Off ? parseInt(Off) : null,
-      cloudinaryId: result.public_id
+      cloudinaryId: result.public_id,
     });
 
     await newDrink.save();
@@ -77,10 +79,15 @@ router.get("/", async (req, res) => {
 
     const [drinks, total] = await Promise.all([
       Drink.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Drink.countDocuments()
+      Drink.countDocuments(),
     ]);
 
-    res.json({ total, page, pages: Math.ceil(total / limit), drinks });
+    res.json({
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      drinks,
+    });
   } catch (error) {
     res.status(500).json({ error: "Server error", details: error.message });
   }
@@ -96,7 +103,7 @@ router.get("/vendor", auth, checkVendorRole, async (req, res) => {
   }
 });
 
-// Get single drink
+// Get a single drink
 router.get("/:id", async (req, res) => {
   try {
     const drink = await Drink.findById(req.params.id);
@@ -109,7 +116,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Update drink
+// Update a drink
 router.put("/:id", auth, checkVendorRole, upload.single("img"), async (req, res) => {
   try {
     const drink = await Drink.findOne({ _id: req.params.id, vendor: req.user.id });
@@ -122,22 +129,26 @@ router.put("/:id", auth, checkVendorRole, upload.single("img"), async (req, res)
       name: req.body.name || drink.name,
       price: req.body.price ? parseFloat(req.body.price) : drink.price,
       Dprice: req.body.Dprice ? parseFloat(req.body.Dprice) : drink.Dprice,
-      Off: req.body.Off ? parseInt(req.body.Off) : drink.Off
+      Off: req.body.Off ? parseInt(req.body.Off) : drink.Off,
     };
 
     if (req.file) {
+      // Delete the old image from Cloudinary
       await cloudinary.uploader.destroy(drink.cloudinaryId);
 
       const result = await cloudinary.uploader.upload(req.file.buffer, {
         public_id: drink.cloudinaryId,
-        overwrite: true
+        overwrite: true,
       });
 
       updates.img = result.secure_url;
       updates.cloudinaryId = result.public_id;
     }
 
-    const updatedDrink = await Drink.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
+    const updatedDrink = await Drink.findByIdAndUpdate(req.params.id, updates, {
+      new: true,
+      runValidators: true,
+    });
 
     res.json(updatedDrink);
   } catch (error) {
@@ -145,7 +156,7 @@ router.put("/:id", auth, checkVendorRole, upload.single("img"), async (req, res)
   }
 });
 
-// Delete drink
+// Delete a drink
 router.delete("/:id", auth, checkVendorRole, async (req, res) => {
   try {
     const drink = await Drink.findOneAndDelete({ _id: req.params.id, vendor: req.user.id });
@@ -154,6 +165,7 @@ router.delete("/:id", auth, checkVendorRole, async (req, res) => {
       return res.status(404).json({ error: "Drink not found" });
     }
 
+    // Delete the image from Cloudinary
     await cloudinary.uploader.destroy(drink.cloudinaryId);
 
     res.json({ message: "Drink deleted successfully" });
