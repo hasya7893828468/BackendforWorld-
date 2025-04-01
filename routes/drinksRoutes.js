@@ -5,10 +5,11 @@ const multer = require("multer");
 const streamifier = require("streamifier");
 const cloudinary = require("../config/cloudinary");
 const auth = require("../middleware/authMiddleware");
+const { checkVendorRole } = require("../middleware/roleMiddleware"); // Import the role middleware
 
 // Configure Multer for memory storage
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
@@ -20,16 +21,27 @@ const upload = multer({
   }
 });
 
+// Helper function for uploading to Cloudinary
+const uploadImageToCloudinary = (buffer, public_id) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "drinks",
+        public_id,
+        transformation: { width: 800, height: 600, crop: "limit" }
+      },
+      (error, result) => {
+        if (error) reject(error);
+        resolve(result);
+      }
+    );
+
+    streamifier.createReadStream(buffer).pipe(uploadStream);
+  });
+};
+
 // Create Drink with Cloudinary upload
-console.log('auth.vendor:', auth); // Check if auth is being imported correctly
-
-router.post("/", auth, async (req, res, next) => {
-  if (req.user.role !== 'vendor') {
-    return res.status(403).json({ success: false, message: "Forbidden: You are not a vendor" });
-  }
-
-  console.log('Post route handler reached');
-
+router.post("/", auth, checkVendorRole, async (req, res) => {
   try {
     const { name, price, Dprice, Off } = req.body;
 
@@ -37,39 +49,22 @@ router.post("/", auth, async (req, res, next) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: "drinks",
-        public_id: `${req.user.id}_${Date.now()}`,
-        transformation: { width: 800, height: 600, crop: "limit" }
-      },
-      async (error, result) => {
-        if (error) {
-          return res.status(500).json({ error: "Image upload failed" });
-        }
+    const result = await uploadImageToCloudinary(req.file.buffer, `${req.user.id}_${Date.now()}`);
 
-        try {
-          const newDrink = new Drink({
-            vendor: req.user.id,
-            name,
-            img: result.secure_url,
-            price: parseFloat(price),
-            Dprice: Dprice ? parseFloat(Dprice) : null,
-            Off: Off ? parseInt(Off) : null,
-            cloudinaryId: result.public_id
-          });
+    const newDrink = new Drink({
+      vendor: req.user.id,
+      name,
+      img: result.secure_url,
+      price: parseFloat(price),
+      Dprice: Dprice ? parseFloat(Dprice) : null,
+      Off: Off ? parseInt(Off) : null,
+      cloudinaryId: result.public_id
+    });
 
-          await newDrink.save();
-          res.status(201).json({ message: "Drink created successfully", drink: newDrink });
-        } catch (saveError) {
-          res.status(500).json({ error: "Error saving drink", details: saveError.message });
-        }
-      }
-    );
-
-    streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
+    await newDrink.save();
+    res.status(201).json({ message: "Drink created successfully", drink: newDrink });
   } catch (error) {
-    res.status(500).json({ error: "Server error", details: error.message });
+    res.status(500).json({ error: "Image upload or server error", details: error.message });
   }
 });
 
@@ -92,11 +87,7 @@ router.get("/", async (req, res) => {
 });
 
 // Get drinks by vendor
-router.get("/vendor", auth, async (req, res) => {
-  if (req.user.role !== 'vendor') {
-    return res.status(403).json({ success: false, message: "Forbidden: You are not a vendor" });
-  }
-
+router.get("/vendor", auth, checkVendorRole, async (req, res) => {
   try {
     const drinks = await Drink.find({ vendor: req.user.id });
     res.json(drinks);
@@ -119,11 +110,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update drink
-router.put("/:id", auth, upload.single("img"), async (req, res) => {
-  if (req.user.role !== 'vendor') {
-    return res.status(403).json({ success: false, message: "Forbidden: You are not a vendor" });
-  }
-
+router.put("/:id", auth, checkVendorRole, upload.single("img"), async (req, res) => {
   try {
     const drink = await Drink.findOne({ _id: req.params.id, vendor: req.user.id });
 
@@ -159,11 +146,7 @@ router.put("/:id", auth, upload.single("img"), async (req, res) => {
 });
 
 // Delete drink
-router.delete("/:id", auth, async (req, res) => {
-  if (req.user.role !== 'vendor') {
-    return res.status(403).json({ success: false, message: "Forbidden: You are not a vendor" });
-  }
-
+router.delete("/:id", auth, checkVendorRole, async (req, res) => {
   try {
     const drink = await Drink.findOneAndDelete({ _id: req.params.id, vendor: req.user.id });
 
