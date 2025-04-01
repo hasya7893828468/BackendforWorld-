@@ -91,7 +91,7 @@ app.use("/api/user-orders", userOrdersRoutes);
 app.use('/api/drinks', drinksRoutes);
 app.use('/api/snacks', snackRoutes);
 app.use("/api/groceries", groceryRoutes);
-app.use("/api/venderproducts", vendorproducts);
++ app.use("/api/vendorproducts", vendorproducts); // Change "vender" to "vendor"
 
 
 // ✅ Root Route

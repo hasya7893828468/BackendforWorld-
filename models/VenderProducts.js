@@ -1,13 +1,16 @@
-const mongoose = require('mongoose');
+
+  
+  const mongoose = require('mongoose');
 
 const venderProductSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  description: { type: String },
-  price: { type: Number, required: true },
-  Dprice: { type: Number }, // Discounted price
-  Off: { type: String }, // Discount percentage
-  rating: { type: Number, default: 0 },
-  img: { type: String, required: true },
+    name: { type: String, required: true },
+    img: { type: String, required: true },
+    price: { type: Number, required: true },
+    vendorId: String,
+    category: { type: String, required: true },
+    description: { type: String, required: true },
+    Dprice: Number,
+    Off: Number
 });
 
 module.exports = mongoose.model('VenderProduct', venderProductSchema);

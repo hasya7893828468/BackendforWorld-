@@ -12,7 +12,7 @@ const upload = multer({ storage });
 // Add a new vendor product with image upload
 router.post("/", upload.single("img"), async (req, res) => {
   try {
-    const { name, price, Dprice, Off } = req.body;
+    const { name, price, Dprice, Off,category, description } = req.body;
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
 
     const stream = cloudinary.uploader.upload_stream((error, result) => {
@@ -25,7 +25,9 @@ router.post("/", upload.single("img"), async (req, res) => {
         name,
         img: result.secure_url, // Cloudinary URL
         price,
-        Dprice,
+          Dprice,
+          category, // Add missing field
+          description, // Add missing field
         Off,
       });
 
@@ -81,12 +83,13 @@ router.put("/:id", async (req, res) => {
 
 // Delete a vendor product
 router.delete("/:id", async (req, res) => {
-  try {
-    await VenderProduct.findByIdAndDelete(req.params.id);
-    res.json({ message: "Vendor product deleted" });
-  } catch (error) {
-    res.status(500).json({ message: "Error deleting vendor product" });
-  }
-});
+    try {
+      const product = await VendorProduct.findByIdAndDelete(req.params.id);
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      res.json({ message: "Product deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting product", error });
+    }
+  });
 
 module.exports = router;
