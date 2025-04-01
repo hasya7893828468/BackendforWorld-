@@ -1,5 +1,5 @@
-const Vendor = require("../models/Vendor");
-const Order = require("../models/Order");
+const Vendor = require("../../models/Vendor");
+const Order = require("../../models/Order");
 
 // ✅ Assign Order to the Nearest Vendor
 exports.assignOrderToVendor = async (req, res) => {
