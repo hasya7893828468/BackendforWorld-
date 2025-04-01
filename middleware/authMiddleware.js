@@ -31,7 +31,12 @@ module.exports = (req, res, next) => {
       role: req.user.role || "user",
     });
 
-    next();
+    // Add vendor role check here
+    if (!req.user || req.user.role !== 'vendor') {
+      return res.status(403).json({ success: false, message: "Forbidden: You are not a vendor" });
+    }
+
+    next(); // Proceed if token is valid and user is a vendor
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Token Verification Error:`, error.message);
 
