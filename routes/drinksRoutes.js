@@ -182,6 +182,25 @@ router.put("/:id", auth.vendor, upload.single("img"), async (req, res) => {
   }
 });
 
+// Add sorting to GET /api/drinks
+router.get("/", async (req, res) => {
+  try {
+    const { vendor, sort } = req.query;
+    const filter = vendor ? { vendor } : {};
+    const sortOptions = {
+      price: { price: 1 },
+      discount: { Off: -1 }
+    };
+
+    const drinks = await Drink.find(filter)
+      .sort(sortOptions[sort] || { createdAt: -1 });
+
+    res.json(drinks);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+});
+
 // Delete drink
 router.delete("/:id", auth.vendor, async (req, res) => {
   try {
