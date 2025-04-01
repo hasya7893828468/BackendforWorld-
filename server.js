@@ -72,7 +72,6 @@ const cardRoutes = require("./routes/cardRoutes");
 const completedOrdersRoutes = require("./routes/completedOrders");
 const productRoutes = require("./routes/productRoutes");
 const userOrdersRoutes = require("./routes/userOrders");
-const vendorproducts = require("./routes/vendorproducts")
 // const cartRoutes = require("./routes/cartRoutes"); // ✅ Check the path
 
 // ✅ Define API Routes
@@ -91,8 +90,6 @@ app.use("/api/user-orders", userOrdersRoutes);
 app.use('/api/drinks', drinksRoutes);
 app.use('/api/snacks', snackRoutes);
 app.use("/api/groceries", groceryRoutes);
-+ app.use("/api/vendorproducts", vendorproducts); // Change "vender" to "vendor"
-
 
 // ✅ Root Route
 app.get("/", (req, res) => {
@@ -121,3 +118,4 @@ io.on("connection", (socket) => {
 // ✅ Start Server
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+z
