@@ -4,7 +4,7 @@ const Drink = require("../models/Drink");
 const multer = require("multer");
 const streamifier = require("streamifier");
 const cloudinary = require("../config/cloudinary");
-const auth = require("../middleware/auth");
+const auth = require("../middleware/authMiddleware");
 
 // Configure Multer for memory storage
 const storage = multer.memoryStorage();
