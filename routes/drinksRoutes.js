@@ -96,12 +96,16 @@ router.get("/", async (req, res) => {
 // Get drinks by vendor
 router.get("/vendor", auth, checkVendorRole, async (req, res) => {
   try {
+    console.log("Fetching drinks for vendor:", req.user.id); // Log the user ID to check if it's coming through
     const drinks = await Drink.find({ vendor: req.user.id });
+    console.log("Drinks fetched:", drinks); // Log fetched drinks
     res.json(drinks);
   } catch (error) {
+    console.error("Error fetching drinks:", error); // Log the error
     res.status(500).json({ error: "Server error", details: error.message });
   }
 });
+
 
 // Get a single drink
 router.get("/:id", async (req, res) => {
